@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
 
 type TeamSelectorProps = {
   onSelect: (teamId: string) => void;
@@ -14,7 +15,7 @@ const TEAMS = [
     short: "CSK",
     primary: "#FFFF00",
     secondary: "#0081E9",
-    emoji: "🦁🔥",
+    emoji: "🦁",
   },
   {
     id: "mi",
@@ -114,22 +115,66 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function getLogoCandidates(team: (typeof TEAMS)[number]) {
+  const explicitLogos: Record<string, string[]> = {
+    csk: ["/csk.jpg"],
+    mi: ["/mi.jpg"],
+    rcb: ["/rcb.jpg"],
+    kkr: ["/kkr.jpg"],
+    srh: ["/srh.jpg"],
+    rr: ["/rr.jpg"],
+    pbks: ["/pk.jpg"],
+    dc: ["/dc.jpg"],
+    gt: ["/Gt.jpg"],
+    lsg: ["/LSg.jpg"],
+  };
+  if (explicitLogos[team.id]) return explicitLogos[team.id];
+
+  const slug = team.name.toLowerCase().replace(/\s+/g, "-");
+  const short = team.short.toLowerCase();
+  const id = team.id.toLowerCase();
+
+  return [
+    `/${id}.png`,
+    `/${id}.jpg`,
+    `/${short}.png`,
+    `/${short}.jpg`,
+    `/${slug}.png`,
+    `/${slug}.jpg`,
+    `/team-${id}.png`,
+    `/team-${id}.jpg`,
+    `/team-${slug}.png`,
+    `/team-${slug}.jpg`,
+  ];
+}
+
 export default function TeamSelector({
   onSelect,
   selectedTeam,
 }: TeamSelectorProps) {
   const hasSelection = selectedTeam !== null;
+  const [logoStepByTeam, setLogoStepByTeam] = useState<Record<string, number>>(
+    {},
+  );
+  const logoCandidatesByTeam = useMemo(
+    () =>
+      Object.fromEntries(TEAMS.map((team) => [team.id, getLogoCandidates(team)])),
+    [],
+  );
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 gap-4 md:grid-cols-4"
+      className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5"
     >
       {TEAMS.map((team) => {
         const isSelected = selectedTeam === team.id;
         const isDimmed = hasSelection && !isSelected;
+        const logoStep = logoStepByTeam[team.id] ?? 0;
+        const logoCandidates = logoCandidatesByTeam[team.id];
+        const logoSrc = logoCandidates?.[logoStep] ?? null;
 
         return (
           <motion.button
@@ -147,7 +192,7 @@ export default function TeamSelector({
             }
             onClick={() => onSelect(team.id)}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="relative flex h-[140px] w-[160px] flex-col items-center justify-center rounded-[12px] text-center"
+            className="relative flex h-[140px] w-full min-w-0 flex-col items-center justify-center rounded-[12px] text-center"
             style={{
               backgroundColor: isSelected
                 ? hexToRgba(team.primary, 0.3)
@@ -170,7 +215,23 @@ export default function TeamSelector({
               </span>
             ) : null}
 
-            <span className="mb-1 text-[32px] leading-none">{team.emoji}</span>
+            {logoSrc ? (
+              <span className="mb-1 overflow-hidden rounded-full border border-white/20">
+                <img
+                  src={logoSrc}
+                  alt={`${team.name} logo`}
+                  className="h-[34px] w-[34px] object-cover"
+                  onError={() =>
+                    setLogoStepByTeam((prev) => ({
+                      ...prev,
+                      [team.id]: logoStep + 1,
+                    }))
+                  }
+                />
+              </span>
+            ) : (
+              <span className="mb-1 text-[32px] leading-none">{team.emoji}</span>
+            )}
             <span
               className="text-[28px] leading-none"
               style={{ fontFamily: "var(--font-display)" }}
