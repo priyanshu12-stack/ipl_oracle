@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import ChatWindow, { type Message } from "@/components/ChatWindow";
 import SessionStats from "@/components/SessionStats";
 import QuizCard from "@/components/QuizCard";
+import PlayerComparison from "@/components/PlayerComparison";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
 type Mode = "chat" | "quiz" | "compare";
@@ -17,13 +18,22 @@ type Quiz = {
   explanation: string;
 };
 
-function PlayerComparison() {
-  return (
-    <div className="mx-auto w-full max-w-3xl rounded-xl border border-white/10 bg-[var(--bg-surface)]/50 p-5 text-[var(--text-secondary)]">
-      Compare mode shell
-    </div>
-  );
-}
+type PlayerStats = {
+  name: string;
+  runs: number;
+  average: number;
+  strikeRate: number;
+  fifties: number;
+  hundreds: number;
+  wickets?: number;
+  economy?: number;
+};
+
+type CompareResult = {
+  player1: PlayerStats;
+  player2: PlayerStats;
+  verdict: string;
+};
 
 export default function ChatPage() {
   const router = useRouter();
@@ -42,7 +52,11 @@ export default function ChatPage() {
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
 
-  // Fetch a quiz question
+  // Compare state
+  const [compareResult, setCompareResult] = useState<CompareResult | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  // Fetch quiz question
   const fetchQuiz = useCallback(async () => {
     setQuizLoading(true);
     setQuiz(null);
@@ -80,6 +94,56 @@ export default function ChatPage() {
   function handleQuizNext() {
     void fetchQuiz();
   }
+
+  // Compare handler
+  const handleCompare = async (player1: string, player2: string) => {
+    setCompareLoading(true);
+    setCompareResult(null);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Compare ${player1} vs ${player2} in IPL. Return ONLY valid JSON in this exact format: { "player1": { "name": "${player1}", "runs": 0, "average": 0, "strikeRate": 0, "fifties": 0, "hundreds": 0 }, "player2": { "name": "${player2}", "runs": 0, "average": 0, "strikeRate": 0, "fifties": 0, "hundreds": 0 }, "verdict": "Oracle says: ..." }`,
+          history: [],
+          mode: "compare",
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error("Compare failed");
+      }
+
+      // Read full streamed response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+      }
+
+      // Strip markdown fences and parse JSON
+      const cleaned = fullText
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // Find JSON object in response
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON found in response");
+
+      const parsed: CompareResult = JSON.parse(jsonMatch[0]);
+      setCompareResult(parsed);
+    } catch (err) {
+      console.error("Compare error:", err);
+    } finally {
+      setCompareLoading(false);
+    }
+  };
 
   const handleSend = async (question?: string) => {
     if (isLoading) return;
@@ -133,7 +197,9 @@ export default function ChatPage() {
 
       if (!response.ok || !response.body) {
         const apiError = await response.text();
-        throw new Error(apiError || "Oracle signal lost. Rain delay in effect.");
+        throw new Error(
+          apiError || "Oracle signal lost. Rain delay in effect."
+        );
       }
 
       const reader = response.body.getReader();
@@ -264,7 +330,13 @@ export default function ChatPage() {
             isLoading={quizLoading}
           />
         )}
-        {mode === "compare" && <PlayerComparison />}
+        {mode === "compare" && (
+          <PlayerComparison
+            onCompare={handleCompare}
+            result={compareResult}
+            isLoading={compareLoading}
+          />
+        )}
       </main>
     </div>
   );
