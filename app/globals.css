@@ -49,6 +49,12 @@ body {
   animation: blink 1s step-end infinite;
 }
 
+@media (pointer: coarse) {
+  .touch-copy-btn {
+    opacity: 1 !important;
+  }
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 99px; }

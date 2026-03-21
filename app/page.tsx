@@ -66,7 +66,7 @@ export default function LandingPage() {
                   className={`${line.color}`}
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: "clamp(64px, 10vw, 120px)",
+                    fontSize: "clamp(48px, 12vw, 96px)",
                   }}
                 >
                   {line.text}
@@ -114,11 +114,12 @@ export default function LandingPage() {
             />
           </div>
 
+          {/* MOBILE FIX: full width on mobile, fixed 280px on desktop */}
           <motion.button
             type="button"
             onClick={handleEnterOracle}
             disabled={!selectedTeam}
-            className="mt-8 h-[52px] w-[280px] rounded-full"
+            className="mt-8 h-[52px] w-full rounded-full sm:w-[280px]"
             transition={{ duration: 0.3, ease: "easeInOut" }}
             animate={
               selectedTeam
@@ -145,7 +146,7 @@ export default function LandingPage() {
         </section>
 
         <p className="py-6 text-center text-xs text-white/35">
-          Built with Claude API · Next.js · Deployed on Vercel
+          Built with Gemini API · Next.js · Deployed on Vercel
         </p>
       </main>
     </motion.div>

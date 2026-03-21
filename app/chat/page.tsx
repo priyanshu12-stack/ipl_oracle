@@ -39,7 +39,6 @@ export default function ChatPage() {
   const router = useRouter();
   const { trackQuestion, trackQuizAnswer } = useAnalytics();
 
-  // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [mode, setMode] = useState<Mode>("chat");
   const [isLoading, setIsLoading] = useState(false);
@@ -47,16 +46,13 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
 
-  // Quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
 
-  // Compare state
   const [compareResult, setCompareResult] = useState<CompareResult | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
 
-  // Fetch quiz question
   const fetchQuiz = useCallback(async () => {
     setQuizLoading(true);
     setQuiz(null);
@@ -76,7 +72,6 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Auto-fetch quiz when switching to quiz mode
   useEffect(() => {
     if (mode === "quiz" && !quiz && !quizLoading) {
       void fetchQuiz();
@@ -95,47 +90,31 @@ export default function ChatPage() {
     void fetchQuiz();
   }
 
-  // Compare handler
   const handleCompare = async (player1: string, player2: string) => {
     setCompareLoading(true);
     setCompareResult(null);
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Compare ${player1} vs ${player2} in IPL. Return ONLY valid JSON in this exact format: { "player1": { "name": "${player1}", "runs": 0, "average": 0, "strikeRate": 0, "fifties": 0, "hundreds": 0 }, "player2": { "name": "${player2}", "runs": 0, "average": 0, "strikeRate": 0, "fifties": 0, "hundreds": 0 }, "verdict": "Oracle says: ..." }`,
+          message: `Compare ${player1} vs ${player2} in IPL cricket. Return ONLY valid JSON, no markdown, no explanation. Use this exact format with real stats: { "player1": { "name": "${player1}", "runs": 0, "average": 0.0, "strikeRate": 0.0, "fifties": 0, "hundreds": 0, "wickets": 0, "economy": 0.0 }, "player2": { "name": "${player2}", "runs": 0, "average": 0.0, "strikeRate": 0.0, "fifties": 0, "hundreds": 0, "wickets": 0, "economy": 0.0 }, "verdict": "Oracle says: ..." }. Fill in the actual IPL career statistics for both players. If a player has no wickets, set wickets to 0. If no economy, set economy to 0.`,
           history: [],
           mode: "compare",
         }),
       });
-
-      if (!response.ok || !response.body) {
-        throw new Error("Compare failed");
-      }
-
-      // Read full streamed response
+      if (!response.ok || !response.body) throw new Error("Compare failed");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         fullText += decoder.decode(value, { stream: true });
       }
-
-      // Strip markdown fences and parse JSON
-      const cleaned = fullText
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
-
-      // Find JSON object in response
+      const cleaned = fullText.replace(/```json/gi, "").replace(/```/g, "").trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON found in response");
-
       const parsed: CompareResult = JSON.parse(jsonMatch[0]);
       setCompareResult(parsed);
     } catch (err) {
@@ -149,24 +128,15 @@ export default function ChatPage() {
     if (isLoading) return;
     const content = (question ?? inputValue).trim();
     if (!content) return;
-
     trackQuestion();
-
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
       content,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     const assistantMessageId = crypto.randomUUID();
-    const conversationHistory = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
+    const conversationHistory = messages.map((m) => ({ role: m.role, content: m.content }));
     setError(null);
     setIsLoading(true);
     setIsStreaming(false);
@@ -177,86 +147,56 @@ export default function ChatPage() {
         id: assistantMessageId,
         role: "assistant",
         content: "",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
     ]);
     setInputValue("");
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: content,
-          history: conversationHistory,
-        }),
+        body: JSON.stringify({ message: content, history: conversationHistory }),
       });
-
       if (!response.ok || !response.body) {
         const apiError = await response.text();
-        throw new Error(
-          apiError || "Oracle signal lost. Rain delay in effect."
-        );
+        throw new Error(apiError || "Oracle signal lost. Rain delay in effect.");
       }
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let hasReceivedFirstChunk = false;
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (!hasReceivedFirstChunk) {
-          hasReceivedFirstChunk = true;
-          setIsStreaming(true);
-        }
+        if (!hasReceivedFirstChunk) { hasReceivedFirstChunk = true; setIsStreaming(true); }
         const chunk = decoder.decode(value, { stream: true });
         if (!chunk) continue;
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessageId
-              ? { ...m, content: `${m.content}${chunk}` }
-              : m
-          )
+          prev.map((m) => m.id === assistantMessageId ? { ...m, content: `${m.content}${chunk}` } : m)
         );
       }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Oracle signal lost. Rain delay in effect.";
+      const errorMessage = err instanceof Error ? err.message : "Oracle signal lost. Rain delay in effect.";
       setError(errorMessage);
-      setMessages((prev) =>
-        prev.filter((m) => m.id !== assistantMessageId)
-      );
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
     } finally {
       setIsStreaming(false);
       setIsLoading(false);
     }
   };
 
-  const handleRetry = () => {
-    setError(null);
-    setIsLoading(false);
-    setIsStreaming(false);
-  };
+  const handleRetry = () => { setError(null); setIsLoading(false); setIsStreaming(false); };
 
   useEffect(() => {
-    const teamColor =
-      localStorage.getItem("ipl_primaryColor") || "#F5C842";
+    const teamColor = localStorage.getItem("ipl_primaryColor") || "#F5C842";
     document.documentElement.style.setProperty("--team-color", teamColor);
   }, []);
 
   const tabs = useMemo(
-    () =>
-      [
-        { id: "chat", label: "🏏 Chat" },
-        { id: "quiz", label: "🎯 Quiz" },
-        { id: "compare", label: "⚖️ Compare" },
-      ] as const,
+    () => [
+      { id: "chat", label: "🏏 Chat", emoji: "🏏" },
+      { id: "quiz", label: "🎯 Quiz", emoji: "🎯" },
+      { id: "compare", label: "⚖️ Compare", emoji: "⚖️" },
+    ] as const,
     []
   );
 
@@ -269,15 +209,16 @@ export default function ChatPage() {
           className="flex items-center gap-2"
         >
           <span className="text-[20px]">🏏</span>
+          {/* MOBILE FIX: smaller font on mobile */}
           <span
-            className="text-[22px] leading-none"
+            className="text-[18px] leading-none sm:text-[22px]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             IPL ORACLE
           </span>
         </button>
 
-        <div className="relative flex h-full items-end gap-5">
+        <div className="relative flex h-full items-end gap-3 sm:gap-5">
           {tabs.map((tab) => {
             const isActive = mode === tab.id;
             return (
@@ -288,12 +229,12 @@ export default function ChatPage() {
                 className="relative h-full pb-3 text-[13px]"
                 style={{
                   fontFamily: "var(--font-body)",
-                  color: isActive
-                    ? "var(--team-color)"
-                    : "var(--text-secondary)",
+                  color: isActive ? "var(--team-color)" : "var(--text-secondary)",
                 }}
               >
-                {tab.label}
+                {/* MOBILE FIX: emoji only on mobile, full label on desktop */}
+                <span className="sm:hidden">{tab.emoji}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
                 {isActive ? (
                   <motion.span
                     layoutId="tab-indicator"

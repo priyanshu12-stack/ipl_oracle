@@ -5,45 +5,27 @@ type QuickActionBarProps = {
 };
 
 const ACTIONS = [
-  {
-    icon: "🔍",
-    label: "Run Kings",
-    prompt: "Who are the all-time top 5 IPL run scorers with full stats?",
-  },
-  {
-    icon: "⚡",
-    label: "Best Finishes",
-    prompt: "What are the most dramatic last-over IPL finishes in history?",
-  },
-  {
-    icon: "🏆",
-    label: "IPL Winners",
-    prompt: "List every IPL champion season by season from 2008 to 2024.",
-  },
-  {
-    icon: "🎯",
-    label: "Top Bowlers",
-    prompt: "Who are the top 5 wicket-takers in IPL history with stats?",
-  },
-  {
-    icon: "🔥",
-    label: "Current Form",
-    prompt: "Which IPL teams and players are in the best form right now?",
-  },
+  { icon: "🔍", label: "Run Kings", prompt: "Who are the all-time top 5 IPL run scorers with full stats?" },
+  { icon: "⚡", label: "Best Finishes", prompt: "What are the most dramatic last-over IPL finishes in history?" },
+  { icon: "🏆", label: "IPL Winners", prompt: "List every IPL champion season by season from 2008 to 2024." },
+  { icon: "🎯", label: "Top Bowlers", prompt: "Who are the top 5 wicket-takers in IPL history with stats?" },
+  { icon: "🔥", label: "Current Form", prompt: "Which IPL teams and players are in the best form right now?" },
 ];
 
 export default function QuickActionBar({ onAction }: QuickActionBarProps) {
   return (
     <div
       className="relative w-full px-4 py-2"
-      style={{
-        backgroundColor: "var(--bg-surface)",
-        borderTop: "1px solid var(--border-subtle)",
-      }}
+      style={{ backgroundColor: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)" }}
     >
+      {/* MOBILE FIX: webkit scroll + no wrap */}
       <div
         className="mx-auto flex w-full max-w-[760px] gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        style={{ msOverflowStyle: "none" } as React.CSSProperties}
+        style={{
+          msOverflowStyle: "none",
+          WebkitOverflowScrolling: "touch",
+          flexWrap: "nowrap",
+        } as React.CSSProperties}
       >
         {ACTIONS.map((action) => (
           <button
@@ -63,7 +45,8 @@ export default function QuickActionBar({ onAction }: QuickActionBarProps) {
         ))}
       </div>
 
-      <div className="pointer-events-none absolute right-4 top-2 hidden h-[36px] w-10 bg-gradient-to-r from-transparent to-[var(--bg-surface)] md:block" />
+      {/* MOBILE FIX: fade overlay only on desktop */}
+      <div className="pointer-events-none absolute right-4 top-2 hidden h-[36px] w-10 bg-gradient-to-r from-transparent to-[var(--bg-surface)] sm:block" />
     </div>
   );
 }

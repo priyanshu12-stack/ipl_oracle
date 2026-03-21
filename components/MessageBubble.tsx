@@ -14,12 +14,10 @@ type MessageBubbleProps = {
 function formatMarkdown(text: string): React.ReactNode {
   const lines = text.split("\n");
   const result: React.ReactNode[] = [];
-
   lines.forEach((line, i) => {
     const boldParsed = line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
       j % 2 === 1 ? <strong key={j}>{part}</strong> : part
     );
-
     if (/^\s*[\*\-]\s+/.test(line)) {
       const cleaned = line.replace(/^\s*[\*\-]\s+/, "");
       const boldInBullet = cleaned.split(/\*\*(.*?)\*\*/g).map((part, j) =>
@@ -29,13 +27,7 @@ function formatMarkdown(text: string): React.ReactNode {
         <div key={i} className="flex gap-2 py-0.5">
           <span
             className="shrink-0 rounded-full"
-            style={{
-              backgroundColor: "var(--team-color)",
-              width: "6px",
-              height: "6px",
-              marginTop: "7px",
-              flexShrink: 0,
-            }}
+            style={{ backgroundColor: "var(--team-color)", width: "6px", height: "6px", marginTop: "7px", flexShrink: 0 }}
           />
           <span>{boldInBullet}</span>
         </div>
@@ -46,15 +38,11 @@ function formatMarkdown(text: string): React.ReactNode {
       result.push(<div key={i}>{boldParsed}</div>);
     }
   });
-
   return result;
 }
 
 export default function MessageBubble({
-  role,
-  content,
-  timestamp,
-  isStreaming = false,
+  role, content, timestamp, isStreaming = false,
 }: MessageBubbleProps) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
@@ -72,7 +60,8 @@ export default function MessageBubble({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="ml-auto w-full max-w-[75%]"
+        // MOBILE FIX: wider on mobile
+        className="ml-auto w-full max-w-[88%] sm:max-w-[75%]"
       >
         <div
           className="px-4 py-3 text-[14px] text-[var(--text-primary)]"
@@ -97,7 +86,8 @@ export default function MessageBubble({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="w-full max-w-[82%]"
+      // MOBILE FIX: wider on mobile
+      className="w-full max-w-[90%] sm:max-w-[82%]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -122,9 +112,9 @@ export default function MessageBubble({
             {isStreaming ? <span className="typing-cursor" /> : null}
           </div>
 
-          {/* Copy button row */}
+          {/* MOBILE FIX: always visible on touch, hover on desktop */}
           <div
-            className="mt-1 flex items-center gap-2"
+            className="touch-copy-btn mt-1 flex items-center gap-2"
             style={{
               opacity: hovered ? 1 : 0,
               transition: "opacity 0.15s ease",
