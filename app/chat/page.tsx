@@ -4,57 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BarChart2 } from "lucide-react";
+import ChatWindow, { type Message } from "@/components/ChatWindow";
 
 type Mode = "chat" | "quiz" | "compare";
-
-type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
-};
-
-type ChatWindowProps = {
-  messages: Message[];
-  isLoading: boolean;
-  isStreaming: boolean;
-  error: string | null;
-  inputValue: string;
-  onInputChange: (value: string) => void;
-};
-
-function ChatWindow({
-  messages,
-  isLoading,
-  isStreaming,
-  error,
-  inputValue,
-  onInputChange,
-}: ChatWindowProps) {
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <div className="rounded-xl border border-white/10 bg-[var(--bg-surface)]/50 p-4 text-sm text-[var(--text-secondary)]">
-        {messages.length === 0
-          ? "No messages yet. Start a cricket conversation."
-          : `${messages.length} messages in session.`}
-      </div>
-      {error ? (
-        <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">
-          {error}
-        </div>
-      ) : null}
-      <textarea
-        value={inputValue}
-        onChange={(e) => onInputChange(e.target.value)}
-        placeholder="Ask the Oracle anything about IPL..."
-        className="min-h-28 w-full rounded-xl border border-white/10 bg-[var(--bg-card)] p-3 text-sm text-[var(--text-primary)] outline-none"
-      />
-      <div className="text-xs text-[var(--text-secondary)]">
-        {isLoading ? "Loading..." : isStreaming ? "Streaming..." : "Idle"}
-      </div>
-    </div>
-  );
-}
 
 function QuizCard() {
   return (
@@ -81,6 +33,101 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [showStats, setShowStats] = useState(false);
+
+  const handleSend = async (question?: string) => {
+    if (isLoading) return;
+
+    const content = (question ?? inputValue).trim();
+    if (!content) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+    const assistantMessageId = crypto.randomUUID();
+    const conversationHistory = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    setError(null);
+    setIsLoading(true);
+    setIsStreaming(false);
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      },
+    ]);
+    setInputValue("");
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: content,
+          history: conversationHistory,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        const apiError = await response.text();
+        throw new Error(apiError || "Oracle signal lost. Rain delay in effect.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let hasReceivedFirstChunk = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!hasReceivedFirstChunk) {
+          hasReceivedFirstChunk = true;
+          setIsStreaming(true);
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        if (!chunk) continue;
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, content: `${m.content}${chunk}` }
+              : m,
+          ),
+        );
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Oracle signal lost. Rain delay in effect.";
+      setError(errorMessage);
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
+    } finally {
+      setIsStreaming(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setIsLoading(false);
+    setIsStreaming(false);
+  };
 
   useEffect(() => {
     const teamId = localStorage.getItem("ipl_selectedTeam") || "csk";
@@ -169,6 +216,8 @@ export default function ChatPage() {
             error={error}
             inputValue={inputValue}
             onInputChange={setInputValue}
+            handleSend={handleSend}
+            handleRetry={handleRetry}
           />
         )}
         {mode === "quiz" && <QuizCard />}
