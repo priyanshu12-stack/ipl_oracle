@@ -9,6 +9,44 @@ type MessageBubbleProps = {
   isStreaming?: boolean;
 };
 
+// Simple markdown formatter — no package needed
+function formatMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const result: React.ReactNode[] = [];
+
+  lines.forEach((line, i) => {
+    // Bold: **text**
+    const boldParsed = line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
+      j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+    );
+
+    // Bullet point lines starting with * or -
+    if (/^\s*[\*\-]\s+/.test(line)) {
+      const cleaned = line.replace(/^\s*[\*\-]\s+/, "");
+      const boldInBullet = cleaned.split(/\*\*(.*?)\*\*/g).map((part, j) =>
+        j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+      );
+      result.push(
+        <div key={i} className="flex gap-2 py-0.5">
+          <span
+            className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: "var(--team-color)", marginTop: "7px" }}
+          />
+          <span>{boldInBullet}</span>
+        </div>
+      );
+    } else if (line.trim() === "") {
+      // Empty line = small gap
+      result.push(<div key={i} className="h-2" />);
+    } else {
+      // Normal line with bold support
+      result.push(<div key={i}>{boldParsed}</div>);
+    }
+  });
+
+  return result;
+}
+
 export default function MessageBubble({
   role,
   content,
@@ -57,7 +95,7 @@ export default function MessageBubble({
         >
           ORC
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div
             className="px-4 py-[14px] text-[14px] leading-[1.7] text-[var(--text-primary)]"
             style={{
@@ -67,7 +105,7 @@ export default function MessageBubble({
               borderRadius: "4px 16px 16px 16px",
             }}
           >
-            {content}
+            {formatMarkdown(content)}
             {isStreaming ? <span className="typing-cursor" /> : null}
           </div>
           <div className="mt-1 text-left text-[11px] text-[var(--text-secondary)]">

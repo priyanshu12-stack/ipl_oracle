@@ -5,6 +5,8 @@ import MessageBubble from "@/components/MessageBubble";
 import SuggestedChips from "@/components/SuggestedChips";
 import LoadingBall from "@/components/LoadingBall";
 import ErrorState from "@/components/ErrorState";
+import InputBar from "@/components/InputBar";
+import QuickActionBar from "@/components/QuickActionBar";
 
 export type Message = {
   id: string;
@@ -44,7 +46,7 @@ export default function ChatWindow({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto pb-4">
+      <div className="flex-1 space-y-4 overflow-y-auto pb-36">
         {!hasMessages && !isLoading ? <SuggestedChips onSelect={handleSend} /> : null}
 
         {hasMessages
@@ -69,25 +71,16 @@ export default function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2">
-        <div className="flex items-end gap-2">
-          <textarea
-            value={inputValue}
-            onChange={(e) => onInputChange(e.target.value)}
-            placeholder="Ask the Oracle..."
-            className="max-h-36 min-h-11 flex-1 resize-none rounded-lg bg-transparent px-2 py-2 text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
-            style={{ fontFamily: "var(--font-body)" }}
-          />
-          <button
-            type="button"
-            onClick={() => handleSend()}
-            className="rounded-full bg-[var(--team-color)] px-4 py-2 text-[12px] text-[#0D0F1A]"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
-            Send
-          </button>
-        </div>
-      </div>
+      <div className="fixed bottom-0 left-0 z-30 w-full"
+  style={{ backgroundColor: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)" }}>
+  <QuickActionBar onAction={handleSend} />
+  <InputBar
+    value={inputValue}
+    onChange={onInputChange}
+    onSend={() => handleSend()}
+    isLoading={isLoading}
+  />
+</div>
     </div>
   );
 }

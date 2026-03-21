@@ -7,7 +7,7 @@ type SuggestedChipsProps = {
 };
 
 const QUESTIONS = [
-  "Who has the most IPL runs all time? 🏏",
+  "Who is the Run king of IPL of all time? 🏏",
   "What are the best last-over finishes ever? ⚡",
   "List every IPL champion from 2008 to 2024 🏆",
   "Who are the top 5 wicket-takers in IPL history? 🎯",
