@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { Copy, Check } from "lucide-react";
 
 type MessageBubbleProps = {
   role: "user" | "assistant";
@@ -9,18 +11,15 @@ type MessageBubbleProps = {
   isStreaming?: boolean;
 };
 
-// Simple markdown formatter — no package needed
 function formatMarkdown(text: string): React.ReactNode {
   const lines = text.split("\n");
   const result: React.ReactNode[] = [];
 
   lines.forEach((line, i) => {
-    // Bold: **text**
     const boldParsed = line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
       j % 2 === 1 ? <strong key={j}>{part}</strong> : part
     );
 
-    // Bullet point lines starting with * or -
     if (/^\s*[\*\-]\s+/.test(line)) {
       const cleaned = line.replace(/^\s*[\*\-]\s+/, "");
       const boldInBullet = cleaned.split(/\*\*(.*?)\*\*/g).map((part, j) =>
@@ -29,17 +28,21 @@ function formatMarkdown(text: string): React.ReactNode {
       result.push(
         <div key={i} className="flex gap-2 py-0.5">
           <span
-            className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: "var(--team-color)", marginTop: "7px" }}
+            className="shrink-0 rounded-full"
+            style={{
+              backgroundColor: "var(--team-color)",
+              width: "6px",
+              height: "6px",
+              marginTop: "7px",
+              flexShrink: 0,
+            }}
           />
           <span>{boldInBullet}</span>
         </div>
       );
     } else if (line.trim() === "") {
-      // Empty line = small gap
       result.push(<div key={i} className="h-2" />);
     } else {
-      // Normal line with bold support
       result.push(<div key={i}>{boldParsed}</div>);
     }
   });
@@ -54,6 +57,14 @@ export default function MessageBubble({
   isStreaming = false,
 }: MessageBubbleProps) {
   const isUser = role === "user";
+  const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   if (isUser) {
     return (
@@ -87,6 +98,8 @@ export default function MessageBubble({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
       className="w-full max-w-[82%]"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className="flex items-start gap-2.5">
         <div
@@ -108,6 +121,34 @@ export default function MessageBubble({
             {formatMarkdown(content)}
             {isStreaming ? <span className="typing-cursor" /> : null}
           </div>
+
+          {/* Copy button row */}
+          <div
+            className="mt-1 flex items-center gap-2"
+            style={{
+              opacity: hovered ? 1 : 0,
+              transition: "opacity 0.15s ease",
+            }}
+          >
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 rounded-full px-[10px] py-[4px]"
+              style={{
+                border: "1px solid var(--border-subtle)",
+                fontFamily: "var(--font-body)",
+                fontSize: "11px",
+                color: copied ? "#22c55e" : "var(--text-secondary)",
+                transition: "all 0.15s ease",
+                background: "transparent",
+                cursor: "pointer",
+              }}
+              aria-label="Copy response"
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+
           <div className="mt-1 text-left text-[11px] text-[var(--text-secondary)]">
             {timestamp}
           </div>

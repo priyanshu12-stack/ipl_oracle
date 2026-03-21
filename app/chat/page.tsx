@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { BarChart2 } from "lucide-react";
 import ChatWindow, { type Message } from "@/components/ChatWindow";
+import SessionStats from "@/components/SessionStats";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 type Mode = "chat" | "quiz" | "compare";
 
@@ -32,13 +33,16 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [showStats, setShowStats] = useState(false);
+  const { trackQuestion } = useAnalytics();
 
   const handleSend = async (question?: string) => {
     if (isLoading) return;
 
     const content = (question ?? inputValue).trim();
     if (!content) return;
+
+    // Track every question sent
+    trackQuestion();
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -174,7 +178,9 @@ export default function ChatPage() {
                 className="relative h-full pb-3 text-[13px]"
                 style={{
                   fontFamily: "var(--font-body)",
-                  color: isActive ? "var(--team-color)" : "var(--text-secondary)",
+                  color: isActive
+                    ? "var(--team-color)"
+                    : "var(--text-secondary)",
                 }}
               >
                 {tab.label}
@@ -189,22 +195,8 @@ export default function ChatPage() {
           })}
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowStats((prev) => !prev)}
-            className="rounded-md p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            aria-label="Session stats"
-          >
-            <BarChart2 size={18} />
-          </button>
-          {showStats ? (
-            <div className="absolute right-0 top-11 w-48 rounded-lg border border-white/10 bg-[var(--bg-card)] p-3 text-xs text-[var(--text-secondary)]">
-              SessionStats
-              <div className="mt-1 text-[11px]">Live stats shell</div>
-            </div>
-          ) : null}
-        </div>
+        {/* SessionStats replaces the old showStats block */}
+        <SessionStats />
       </header>
 
       <main className="mt-14 flex-1 overflow-y-auto p-4">
