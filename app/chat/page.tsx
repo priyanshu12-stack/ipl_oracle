@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import ChatWindow, { type Message } from "@/components/ChatWindow";
 import SessionStats from "@/components/SessionStats";
+import QuizCard from "@/components/QuizCard";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
 type Mode = "chat" | "quiz" | "compare";
 
-function QuizCard() {
-  return (
-    <div className="mx-auto w-full max-w-3xl rounded-xl border border-white/10 bg-[var(--bg-surface)]/50 p-5 text-[var(--text-secondary)]">
-      Quiz mode shell
-    </div>
-  );
-}
+type Quiz = {
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+};
 
 function PlayerComparison() {
   return (
@@ -27,21 +27,65 @@ function PlayerComparison() {
 
 export default function ChatPage() {
   const router = useRouter();
+  const { trackQuestion, trackQuizAnswer } = useAnalytics();
+
+  // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [mode, setMode] = useState<Mode>("chat");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const { trackQuestion } = useAnalytics();
+
+  // Quiz state
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
+
+  // Fetch a quiz question
+  const fetchQuiz = useCallback(async () => {
+    setQuizLoading(true);
+    setQuiz(null);
+    try {
+      const res = await fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ difficulty: "medium" }),
+      });
+      if (!res.ok) throw new Error("Quiz fetch failed");
+      const data = await res.json();
+      setQuiz(data);
+    } catch (err) {
+      console.error("Quiz error:", err);
+    } finally {
+      setQuizLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch quiz when switching to quiz mode
+  useEffect(() => {
+    if (mode === "quiz" && !quiz && !quizLoading) {
+      void fetchQuiz();
+    }
+  }, [mode, quiz, quizLoading, fetchQuiz]);
+
+  function handleQuizAnswer(correct: boolean) {
+    trackQuizAnswer(correct);
+    setQuizScore((prev) => ({
+      correct: correct ? prev.correct + 1 : prev.correct,
+      total: prev.total + 1,
+    }));
+  }
+
+  function handleQuizNext() {
+    void fetchQuiz();
+  }
 
   const handleSend = async (question?: string) => {
     if (isLoading) return;
-
     const content = (question ?? inputValue).trim();
     if (!content) return;
 
-    // Track every question sent
     trackQuestion();
 
     const userMessage: Message = {
@@ -105,13 +149,12 @@ export default function ChatPage() {
         }
         const chunk = decoder.decode(value, { stream: true });
         if (!chunk) continue;
-
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMessageId
               ? { ...m, content: `${m.content}${chunk}` }
-              : m,
-          ),
+              : m
+          )
         );
       }
     } catch (err) {
@@ -120,7 +163,9 @@ export default function ChatPage() {
           ? err.message
           : "Oracle signal lost. Rain delay in effect.";
       setError(errorMessage);
-      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== assistantMessageId)
+      );
     } finally {
       setIsStreaming(false);
       setIsLoading(false);
@@ -134,10 +179,9 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    const teamId = localStorage.getItem("ipl_selectedTeam") || "csk";
-    const teamColor = localStorage.getItem("ipl_primaryColor") || "#F5C842";
+    const teamColor =
+      localStorage.getItem("ipl_primaryColor") || "#F5C842";
     document.documentElement.style.setProperty("--team-color", teamColor);
-    void teamId;
   }, []);
 
   const tabs = useMemo(
@@ -147,7 +191,7 @@ export default function ChatPage() {
         { id: "quiz", label: "🎯 Quiz" },
         { id: "compare", label: "⚖️ Compare" },
       ] as const,
-    [],
+    []
   );
 
   return (
@@ -195,7 +239,6 @@ export default function ChatPage() {
           })}
         </div>
 
-        {/* SessionStats replaces the old showStats block */}
         <SessionStats />
       </header>
 
@@ -212,7 +255,15 @@ export default function ChatPage() {
             handleRetry={handleRetry}
           />
         )}
-        {mode === "quiz" && <QuizCard />}
+        {mode === "quiz" && (
+          <QuizCard
+            quiz={quiz}
+            onNext={handleQuizNext}
+            onAnswer={handleQuizAnswer}
+            score={quizScore}
+            isLoading={quizLoading}
+          />
+        )}
         {mode === "compare" && <PlayerComparison />}
       </main>
     </div>
