@@ -2,8 +2,7 @@
 
 > Not just a chatbot. A stadium experience powered by AI.
 
-**Live Demo:**
-{https://ipl-oracle-blond.vercel.app}
+**Live Demo:** { https://ipl-oracle-blond.vercel.app }
 
 ---
 
