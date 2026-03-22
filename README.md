@@ -12,7 +12,7 @@ IPL Oracle is a purpose-built AI companion for the Indian Premier League — the
 
 This isn't a generic chatbot with an IPL skin. Every design decision — the dark stadium aesthetic, the cricket ball loading animation, the "Rain Delay" error screen, the team color that follows you from the landing page into every chat bubble — was made deliberately to make the product *feel* like it belongs inside a cricket stadium.
 
-**The experience you design around the chatbot is the actual product.**
+**The design experience around the chatbot is the actual product.**
 
 ---
 
